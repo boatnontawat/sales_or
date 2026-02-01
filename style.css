@@ -1,0 +1,103 @@
+/* สไตล์สำหรับส่วนทั่วไป */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ส่วนหัว */
+h2 {
+    text-align: center;
+    color: #28a745; /* สีเขียว */
+    margin-bottom: 20px;
+}
+
+/* ฟอร์ม */
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* อินพุต */
+input[type="text"],
+input[type="file"],
+input[type="submit"] {
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* สีเมื่ออินพุตมีข้อผิดพลาด */
+input[type="text"]:invalid {
+    border-color: red;
+}
+
+/* ปุ่ม Submit */
+input[type="submit"] {
+    background-color: #28a745; /* สีเขียว */
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 12px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+input[type="submit"]:hover {
+    background-color: #218838; /* สีเขียวเข้มเมื่อ hover */
+}
+
+/* ข้อความผิดพลาด */
+span {
+    color: red;
+    font-size: 14px;
+}
+
+/* จัดตำแหน่งให้ฟอร์มตอบสนองได้ */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    input[type="submit"] {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    input[type="text"] {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+
+/* สำหรับความกว้างหน้าจอที่เล็กกว่าบนมือถือ */
+@media (max-width: 480px) {
+    h2 {
+        font-size: 20px;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    input[type="submit"] {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+}
