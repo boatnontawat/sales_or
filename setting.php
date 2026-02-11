@@ -1,6 +1,6 @@
 <?php
 // เชื่อมต่อกับฐานข้อมูล
-$conn = new mysqli('localhost', 'root', '', 'project');
+$conn = new mysqli('gateway01.ap-southeast-1.prod.aws.tidbcloud.com', '3WUQLTeLKsCs6W4.root', 'wknpq6pvH9P0rVdH', 'project');
 
 // ตรวจสอบการเชื่อมต่อ
 if ($conn->connect_error) {
