@@ -18,19 +18,26 @@ if (!$set_id) {
 // ดึงชื่อ User อย่างปลอดภัย
 $current_user = $_SESSION['user_name'] ?? 'Unknown';
 
-// ฟังก์ชันสำหรับบันทึก Log
+// -----------------------------------------------------------
+// จุดที่แก้ไข: ปรับปรุงฟังก์ชัน logAction ให้บันทึก user_id ด้วย
+// -----------------------------------------------------------
 function logAction($user_id, $action, $details, $conn) {
     if (!$conn instanceof mysqli) {
         return;
     }
     $created_by = $_SESSION['user_name'] ?? 'Guest';
-    $stmt = $conn->prepare("INSERT INTO logs (action, details, created_by) VALUES (?, ?, ?)");
+    
+    // เพิ่ม user_id เข้าไปในคำสั่ง SQL
+    $stmt = $conn->prepare("INSERT INTO logs (user_id, action, details, created_by) VALUES (?, ?, ?, ?)");
+    
     if ($stmt) {
-        $stmt->bind_param("sss", $action, $details, $created_by);
+        // bind_param: i = int (user_id), s = string
+        $stmt->bind_param("isss", $user_id, $action, $details, $created_by);
         $stmt->execute();
         $stmt->close();
     }
 }
+// -----------------------------------------------------------
 
 // --- ส่วนจัดการข้อมูล (POST Request) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
