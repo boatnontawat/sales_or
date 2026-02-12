@@ -1,8 +1,19 @@
 <?php
-// เชื่อมต่อกับฐานข้อมูล
-$conn = new mysqli('gateway01.ap-southeast-1.prod.aws.tidbcloud.com', '3WUQLTeLKsCs6W4.root', 'wknpq6pvH9P0rVdH', 'project');
+// setting.php
 
-// ตรวจสอบการเชื่อมต่อ
+// 1. กำหนดค่าการเชื่อมต่อ (TiDB Serverless)
+$host = 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com';
+$port = 4000;
+$user = '3WUQLTeLKsCs6W4.root'; 
+$password = 'wknpq6pvH9P0rVdH';
+$dbname = 'project';
+
+// 2. เริ่มต้นการเชื่อมต่อแบบ SSL
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL); // ตั้งค่าให้ใช้ SSL
+$conn->real_connect($host, $user, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
+
+// 3. ตรวจสอบการเชื่อมต่อ
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
@@ -16,14 +27,22 @@ $user_name = $hospital_name = $department_name = "";
 // ตรวจสอบว่า session มีค่า 'user_id' หรือไม่
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
-    $sql = "SELECT user_name, hospital_name, department_name FROM users WHERE user_id = ?";
+    
+    // เตรียม SQL เพื่อดึงข้อมูล
+    $sql = "SELECT user_name, hospital_name, department_name FROM users WHERE id = ?"; 
+    // หมายเหตุ: เช็คชื่อ column ID ใน DB ด้วยนะครับ (ปกติคือ id หรือ user_id)
+    // ถ้าในฐานข้อมูลชื่อ user_id ให้แก้ SQL เป็น WHERE user_id = ?
+    
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $stmt->bind_result($user_name, $hospital_name, $department_name);
-    $stmt->fetch();
+    
+    if ($stmt->execute()) {
+        $stmt->bind_result($user_name, $hospital_name, $department_name);
+        $stmt->fetch();
+    }
     $stmt->close();
 } else {
+    // ถ้าไม่มี session ให้เด้งไปหน้า login
     header("Location: login.php");
     exit();
 }
@@ -33,8 +52,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="setting.css">
     <title>การตั้งค่า</title>
 </head>
@@ -42,14 +60,12 @@ if (isset($_SESSION['user_id'])) {
     
     <div class="container mt-4">
     <div class="header compact d-flex justify-content-between align-items-center p-3">
-        <!-- Logo placed in the center -->
         <div class="logo-container d-flex justify-content-center flex-grow-1">
             <a href="index.php" class="logo">
                 <img src="logo.png" alt="Logo" class="img-fluid" style="max-height: 50px;">
             </a>
         </div>
 
-        <!-- Back button placed on the right -->
         <a href="index.php" class="back">
             <img src="back.png" alt="Back" class="img-fluid" style="max-height: 30px;">
         </a>
@@ -57,28 +73,23 @@ if (isset($_SESSION['user_id'])) {
         <h2 class="text-center">การตั้งค่า</h2>
         <div class="row justify-content-center">
             <div class="col-md-3 col-sm-4 mb-3">
-                <a href="addset.php" class="btn btn-primary btn-block">สร้าง Set</a>
+                <a href="addset.php" class="btn btn-primary w-100">สร้าง Set</a>
             </div>
             <div class="col-md-3 col-sm-4 mb-3">
-                <a href="additem.php" class="btn btn-primary btn-block">สร้าง Item</a>
+                <a href="additem.php" class="btn btn-primary w-100">สร้าง Item</a>
             </div>
             <div class="col-md-3 col-sm-4 mb-3">
-                <a href="reports.php" class="btn btn-primary btn-block">รายงาน</a>
+                <a href="reports.php" class="btn btn-primary w-100">รายงาน</a>
             </div>
             <div class="col-md-3 col-sm-4 mb-3">
-                <a href="allitem.php" class="btn btn-secondary btn-block">จัดการ Item</a>
+                <a href="allitem.php" class="btn btn-secondary w-100">จัดการ Item</a>
             </div>
             <div class="col-md-3 col-sm-4 mb-3">
-                <a href="allset.php" class="btn btn-secondary btn-block">จัดการ Set</a>
+                <a href="allset.php" class="btn btn-secondary w-100">จัดการ Set</a>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS and jQuery (optional for interactive features) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-
