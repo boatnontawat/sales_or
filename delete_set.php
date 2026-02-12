@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db.php';
+include 'header.php';
 
 // 1. ตรวจสอบ Login
 if (!isset($_SESSION['user_id'])) {
