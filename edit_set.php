@@ -4,6 +4,7 @@ session_start();
 
 // เชื่อมต่อกับฐานข้อมูล
 include 'db.php'; 
+include 'header.php';
 
 // ตรวจสอบการเชื่อมต่อ
 if ($conn->connect_error) {
