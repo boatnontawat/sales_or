@@ -1,6 +1,7 @@
 <?php
 // register.php
 include 'db.php';
+include 'header.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_name = $_POST['user_name'];  // Changed 'name' to 'user_name'
