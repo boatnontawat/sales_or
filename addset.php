@@ -4,14 +4,13 @@ session_start(); // เริ่มต้น session
 
 // ตรวจสอบว่า user_id ถูกตั้งค่าหรือยัง (ผู้ใช้ล็อกอินหรือไม่)
 if (!isset($_SESSION['user_id'])) {
-    // ถ้าไม่ได้ล็อกอิน ส่งผู้ใช้ไปที่หน้า login
     header('Location: login.php');
     exit;
 }
 
 // ฟังก์ชันสำหรับบันทึก Log
 function logAction($action, $details, $conn) {
-    $created_by = $_SESSION['user_name'] ?? 'Guest'; // ใช้ชื่อผู้ใช้ที่ล็อกอิน หรือ Guest หากไม่ได้ล็อกอิน
+    $created_by = $_SESSION['user_name'] ?? 'Guest';
     $stmt = $conn->prepare("INSERT INTO logs (action, details, created_by) VALUES (?, ?, ?)");
     $stmt->bind_param("sss", $action, $details, $created_by);
     $stmt->execute();
@@ -24,79 +23,88 @@ $set_name_err = $set_price_err = $sale_price_err = $set_image_err = "";
 
 // เมื่อมีการ submit ฟอร์ม
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Validate set_name
+    
+    // 1. รับค่าจากฟอร์มและตรวจสอบความถูกต้อง (Validation)
     if (empty(trim($_POST["set_name"]))) {
         $set_name_err = "Please enter the set name.";
     } else {
         $set_name = trim($_POST["set_name"]);
     }
 
-    // Validate set_price
     if (empty(trim($_POST["set_price"]))) {
         $set_price_err = "Please enter the set price.";
     } else {
         $set_price = trim($_POST["set_price"]);
     }
 
-    // Validate sale_price
     if (empty(trim($_POST["sale_price"]))) {
         $sale_price_err = "Please enter the sale price.";
     } else {
         $sale_price = trim($_POST["sale_price"]);
     }
 
-    // Handle image upload (optional)
+    $discount = 0;
+    if (isset($_POST['discount']) && is_numeric($_POST['discount'])) {
+        $discount = trim($_POST['discount']);
+    }
+
+    // 2. จัดการการอัปโหลดรูปภาพ (Image Upload) - แก้ไขใหม่สำหรับ Render/Linux
     if (isset($_FILES['set_image']) && $_FILES['set_image']['error'] == 0) {
         $image_tmp = $_FILES['set_image']['tmp_name'];
-        $image_name = $_FILES['set_image']['name'];
-        $target_dir = "C:/xampp/htdocs/project/sets/"; // Change to your desired folder
-        $target_file = $target_dir . basename($image_name);
+        $image_name = basename($_FILES['set_image']['name']);
+        
+        // --- จุดที่แก้ไข: ใช้ __DIR__ เพื่อหา Path ปัจจุบันของไฟล์นี้บน Server ---
+        $target_dir = __DIR__ . "/sets/"; 
+        
+        // ตรวจสอบว่ามีโฟลเดอร์ sets หรือไม่ ถ้าไม่มีให้สร้าง (Render ต้องใช้คำสั่งนี้)
+        if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0777, true);
+        }
+
+        $target_file = $target_dir . $image_name;
         $image_file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
         $allowed_types = ["jpg", "jpeg", "png", "gif"];
 
         if (!in_array($image_file_type, $allowed_types)) {
             $set_image_err = "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
         } else {
+            // ย้ายไฟล์จาก Temp ไปยังโฟลเดอร์ sets
             if (move_uploaded_file($image_tmp, $target_file)) {
-                $set_image = $image_name;
+                $set_image = $image_name; // เก็บชื่อไฟล์ไว้ลง Database
             } else {
                 $set_image_err = "Sorry, there was an error uploading your image.";
             }
         }
-    } // No else required for skipping image validation
+    }
 
-    // If no errors, insert into database
+    // 3. บันทึกลงฐานข้อมูล (ถ้าไม่มี Error)
     if (empty($set_name_err) && empty($set_price_err) && empty($sale_price_err) && empty($set_image_err)) {
-        // ตรวจสอบ discount จากฟอร์ม
-        if (isset($_POST['discount']) && is_numeric($_POST['discount'])) {
-            $discount = trim($_POST['discount']);
-        } else {
-            $discount = 0;
-        }
-
-        // กำหนดค่า created_by
+        
         $created_by = $_SESSION['user_name'] ?? 'Guest';
 
-        // เพิ่มข้อมูลในฐานข้อมูล
+        // เตรียม SQL Insert
         $sql = "INSERT INTO sets (set_name, set_price, sale_price, discount_percentage, set_image, created_by) VALUES (?, ?, ?, ?, ?, ?)";
 
         if ($stmt = $conn->prepare($sql)) {
+            // Bind parameters (s=string, d=double)
             $stmt->bind_param("ssddss", $set_name, $set_price, $sale_price, $discount, $set_image, $created_by);
 
             if ($stmt->execute()) {
-                // Log the action after successful insertion
+                // บันทึก Log
                 logAction('AddSet', "Added set: $set_name with discount $discount%", $conn);
 
-                // Get the ID of the newly inserted set
+                // ดึง ID ล่าสุดที่เพิ่งเพิ่ม
                 $set_id = $stmt->insert_id;
 
-                // Redirect to add items to the set
+                // Redirect ไปหน้าเพิ่มรายการสินค้าใน Set
                 header("Location: additemtoset.php?set_id=" . $set_id);
                 exit();
             } else {
-                echo "Error: " . $stmt->error;
+                echo "Error executing query: " . $stmt->error;
             }
             $stmt->close();
+        } else {
+             echo "Error preparing statement: " . $conn->error;
         }
     }
 }
@@ -110,7 +118,6 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>สร้าง Set</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -119,7 +126,7 @@ $conn->close();
             const setPrice = parseFloat(document.getElementById('set_price').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
             const salePrice = setPrice - (setPrice * (discount / 100));
-            document.getElementById('sale_price').value = salePrice.toFixed(2);  // Update sale price
+            document.getElementById('sale_price').value = salePrice.toFixed(2);
         }
     </script>
 </head>
@@ -127,36 +134,37 @@ $conn->close();
     <div class="container mt-5">
         <h2 class="text-center text-success">สร้าง Set</h2>
         <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" enctype="multipart/form-data" class="form-group">
+            
             <div class="mb-3">
                 <label for="set_name" class="form-label">ชื่อ Set:</label>
-                <input type="text" name="set_name" class="form-control" value="<?php echo $set_name; ?>">
+                <input type="text" name="set_name" class="form-control" value="<?php echo htmlspecialchars($set_name); ?>">
                 <span class="text-danger"><?php echo $set_name_err; ?></span>
             </div>
 
             <div class="mb-3">
-                <label for="set_price" class="form-label">ราคา:</label>
-                <input type="text" id="set_price" name="set_price" class="form-control" value="<?php echo $set_price; ?>" oninput="calculateSalePrice()">
+                <label for="set_price" class="form-label">ราคาเต็ม:</label>
+                <input type="text" id="set_price" name="set_price" class="form-control" value="<?php echo htmlspecialchars($set_price); ?>" oninput="calculateSalePrice()">
                 <span class="text-danger"><?php echo $set_price_err; ?></span>
             </div>
 
             <div class="mb-3">
-                <label for="discount" class="form-label">เปอร์เซ็นต์ที่ลด:</label>
+                <label for="discount" class="form-label">ส่วนลด (%):</label>
                 <input type="text" id="discount" name="discount" class="form-control" value="0" oninput="calculateSalePrice()">
             </div>
 
             <div class="mb-3">
-                <label for="sale_price" class="form-label">ลดเหลือ:</label>
-                <input type="text" id="sale_price" name="sale_price" class="form-control" value="<?php echo $sale_price; ?>" readonly>
+                <label for="sale_price" class="form-label">ราคาขายจริง:</label>
+                <input type="text" id="sale_price" name="sale_price" class="form-control" value="<?php echo htmlspecialchars($sale_price); ?>" readonly>
                 <span class="text-danger"><?php echo $sale_price_err; ?></span>
             </div>
 
             <div class="mb-3">
-                <label for="set_image" class="form-label">Set Image (Optional):</label>
+                <label for="set_image" class="form-label">รูปภาพ Set (ถ้ามี):</label>
                 <input type="file" name="set_image" class="form-control">
                 <span class="text-danger"><?php echo $set_image_err; ?></span>
             </div>
 
-            <button type="submit" class="btn btn-success w-100">สร้าง</button>
+            <button type="submit" class="btn btn-success w-100">สร้าง Set และไปต่อ</button>
         </form>
     </div>
 </body>
