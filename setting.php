@@ -10,7 +10,7 @@ $dbname = 'project';
 
 // 2. เริ่มต้นการเชื่อมต่อแบบ SSL
 $conn = mysqli_init();
-$conn->ssl_set(NULL, NULL, NULL, NULL, NULL); // ตั้งค่าให้ใช้ SSL
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL); 
 $conn->real_connect($host, $user, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
 
 // 3. ตรวจสอบการเชื่อมต่อ
@@ -21,18 +21,12 @@ if ($conn->connect_error) {
 // เริ่มต้น session
 session_start();
 
-// ตรวจสอบการเข้าสู่ระบบและดึงข้อมูลของผู้ใช้
+// ตรวจสอบการเข้าสู่ระบบ
 $user_name = $hospital_name = $department_name = "";
 
-// ตรวจสอบว่า session มีค่า 'user_id' หรือไม่
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
-    
-    // เตรียม SQL เพื่อดึงข้อมูล
     $sql = "SELECT user_name, hospital_name, department_name FROM users WHERE user_id = ?";
-    // หมายเหตุ: เช็คชื่อ column ID ใน DB ด้วยนะครับ (ปกติคือ id หรือ user_id)
-    // ถ้าในฐานข้อมูลชื่อ user_id ให้แก้ SQL เป็น WHERE user_id = ?
-    
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $user_id);
     
@@ -42,7 +36,6 @@ if (isset($_SESSION['user_id'])) {
     }
     $stmt->close();
 } else {
-    // ถ้าไม่มี session ให้เด้งไปหน้า login
     header("Location: login.php");
     exit();
 }
@@ -86,6 +79,9 @@ if (isset($_SESSION['user_id'])) {
             </div>
             <div class="col-md-3 col-sm-4 mb-3">
                 <a href="allset.php" class="btn btn-secondary w-100">จัดการ Set</a>
+            </div>
+            <div class="col-md-3 col-sm-4 mb-3">
+                <a href="manage_users.php" class="btn btn-warning w-100 text-dark">จัดการผู้ใช้งาน</a>
             </div>
         </div>
     </div>
