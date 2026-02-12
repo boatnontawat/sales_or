@@ -1,55 +1,71 @@
 <?php
-// เชื่อมต่อกับฐานข้อมูล
+session_start();
 include 'db.php';
 
-// ตรวจสอบการเชื่อมต่อ
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// 1. ตรวจสอบ Login
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
 }
 
-// เริ่มต้น session
-session_start();
+$user_id = $_SESSION['user_id'];
+$user_name = $_SESSION['user_name'] ?? 'Unknown';
 
-// ฟังก์ชันสำหรับบันทึกข้อมูลการกระทำ
-function logAction($user_name, $details, $conn) {
-    // ตรวจสอบว่า user_name เป็นค่าที่ไม่ใช่ null
-    if ($user_name == null) {
-        echo "Error: User not logged in.";
-        exit();
+// 2. ฟังก์ชัน logAction (แก้ไขให้รับ user_id และบันทึกลงฐานข้อมูล)
+function logAction($conn, $user_id, $created_by, $action, $details) {
+    // เตรียม SQL ให้บันทึก user_id ด้วย
+    $stmt = $conn->prepare("INSERT INTO logs (user_id, created_by, action, details) VALUES (?, ?, ?, ?)");
+    if ($stmt) {
+        $stmt->bind_param("isss", $user_id, $created_by, $action, $details);
+        $stmt->execute();
+        $stmt->close();
     }
-
-    $stmt = $conn->prepare("INSERT INTO logs (user_name, action, details) VALUES (?, 'Deleted Set', ?)");
-    $stmt->bind_param("ss", $user_name, $details);
-    $stmt->execute();
-    $stmt->close();
 }
 
-// ตรวจสอบว่า set_id ถูกส่งมาหรือไม่
+// 3. ตรวจสอบการส่งค่ามาลบ
 if (isset($_GET['set_id']) && !empty($_GET['set_id'])) {
     $set_id = $_GET['set_id'];
 
-    // ลบข้อมูลจากฐานข้อมูล
-    $sql = "DELETE FROM sets WHERE set_id = ?";
+    // --- ขั้นตอนที่ A: ดึงชื่อรูปภาพมาก่อน (เพื่อลบไฟล์) ---
+    $image_to_delete = "";
+    $stmt_img = $conn->prepare("SELECT set_image FROM sets WHERE set_id = ?");
+    $stmt_img->bind_param("i", $set_id);
+    $stmt_img->execute();
+    $stmt_img->bind_result($image_to_delete);
+    $stmt_img->fetch();
+    $stmt_img->close();
 
+    // --- ขั้นตอนที่ B: ลบข้อมูลรายการย่อยใน set_items ก่อน (ป้องกัน Foreign Key Error) ---
+    $stmt_items = $conn->prepare("DELETE FROM set_items WHERE set_id = ?");
+    $stmt_items->bind_param("i", $set_id);
+    $stmt_items->execute();
+    $stmt_items->close();
+
+    // --- ขั้นตอนที่ C: ลบข้อมูลในตาราง sets ---
+    $sql = "DELETE FROM sets WHERE set_id = ?";
     if ($stmt = $conn->prepare($sql)) {
-        // Bind the parameter
         $stmt->bind_param("i", $set_id);
 
-        // Execute the query
         if ($stmt->execute()) {
-            // บันทึกการกระทำลงใน logs
-            $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'Unknown'; // ดึงชื่อผู้ใช้จาก session (หากมี)
+            
+            // --- ขั้นตอนที่ D: ลบไฟล์รูปภาพออกจาก Server (ถ้ามี) ---
+            if (!empty($image_to_delete)) {
+                $file_path = __DIR__ . "/sets/" . $image_to_delete;
+                if (file_exists($file_path)) {
+                    unlink($file_path); // ลบไฟล์
+                }
+            }
 
-            $details = "Deleted set with set_id: $set_id";
-            logAction($user_name, $details, $conn);  // บันทึกข้อมูลการลบใน logs
+            // บันทึก Log (ส่ง user_id ไปด้วย แก้ error)
+            $details = "Deleted set ID: $set_id ($image_to_delete)";
+            logAction($conn, $user_id, $user_name, "Delete Set", $details);
 
-            // ถ้าลบสำเร็จ ให้ redirect ไปยังหน้าอื่น (เช่น หน้าแสดงรายการ sets)
-            header("Location: index.php");  // เปลี่ยนเป็นหน้าที่ต้องการแสดงหลังการลบ
+            // กลับไปหน้า index หรือ allset
+            header("Location: index.php?msg=deleted");
             exit();
         } else {
-            echo "Error: " . $stmt->error;
+            echo "Error deleting record: " . $stmt->error;
         }
-
         $stmt->close();
     }
 } else {
