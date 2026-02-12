@@ -1,5 +1,6 @@
 <?php
-include 'db.php'; // รวมไฟล์เชื่อมต่อฐานข้อมูล
+include 'db.php';
+include 'header.php';// รวมไฟล์เชื่อมต่อฐานข้อมูล
 session_start(); // เริ่มต้น session
 
 // ตรวจสอบว่า user_id ถูกตั้งค่าหรือยัง (ผู้ใช้ล็อกอินหรือไม่)
