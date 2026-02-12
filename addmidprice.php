@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db.php';
+include 'header.php';
 
 // ตรวจสอบการล็อกอิน
 if (!isset($_SESSION['user_id'])) {
