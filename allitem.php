@@ -1,6 +1,7 @@
 <?php
 // Include the database connection
 include('db.php');
+include 'header.php';
 
 // Start the session
 session_start();
