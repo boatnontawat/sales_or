@@ -29,7 +29,7 @@ if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
     
     // เตรียม SQL เพื่อดึงข้อมูล
-    $sql = "SELECT user_name, hospital_name, department_name FROM users WHERE id = ?"; 
+    $sql = "SELECT user_name, hospital_name, department_name FROM users WHERE user_id = ?";
     // หมายเหตุ: เช็คชื่อ column ID ใน DB ด้วยนะครับ (ปกติคือ id หรือ user_id)
     // ถ้าในฐานข้อมูลชื่อ user_id ให้แก้ SQL เป็น WHERE user_id = ?
     
