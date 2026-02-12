@@ -97,22 +97,21 @@ $log_result = $log_stmt->get_result();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                    if ($result->num_rows > 0) {
-                        while ($row = $result->fetch_assoc()) {
-                            echo '<tr>';
-                            echo '<td>' . htmlspecialchars($row['set_name']) . '</td>';
-                            echo '<td>' . htmlspecialchars($row['mid_name']) . '</td>';
-                            echo '<td>' . htmlspecialchars($row['set_price']) . '</td>';
-                            echo '<td>' . htmlspecialchars($row['mid_price']) . '</td>';
-                            echo '<td>' . htmlspecialchars($row['user_price']) . '</td>';
-                            echo '</tr>';
-                        }
-                    } else {
-                        echo '<tr><td colspan="5">No data found.</td></tr>';
-                    }
-                    ?>
-                </tbody>
+    <?php
+    if ($log_result->num_rows > 0) {
+        while ($log_row = $log_result->fetch_assoc()) {
+            echo '<tr>';
+            // เติม ?? '' ต่อท้ายทุกตัวเช่นกัน
+            echo '<td>' . htmlspecialchars($log_row['user_name'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($log_row['details'] ?? '') . '</td>';
+            echo '<td>' . htmlspecialchars($log_row['created_by'] ?? '') . '</td>';
+            echo '</tr>';
+        }
+    } else {
+        echo '<tr><td colspan="3">No logs found.</td></tr>';
+    }
+    ?>
+</tbody>
             </table>
         </div>
 
