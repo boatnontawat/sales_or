@@ -1,15 +1,15 @@
 <?php
 // edit_item.php
 
-// 1. เชื่อมต่อฐานข้อมูล (ใน db.php มีการ start session ไว้แล้ว จึงไม่ต้องเรียกซ้ำ)
+// 1. เชื่อมต่อฐานข้อมูล (ต้องทำเป็นอย่างแรก)
 include 'db.php';
 
-// กันเหนียว: เช็คว่า session เริ่มหรือยัง ถ้ายังให้เริ่มใหม่ (ป้องกัน Notice)
+// ตรวจสอบสถานะ Session ก่อนเริ่มใหม่ (แก้ปัญหา Notice: Ignoring session_start)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. ตรวจสอบ Login
+// 2. ตรวจสอบ Login (ถ้าไม่ได้ล็อกอิน ดีดออกทันที)
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -18,13 +18,13 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'] ?? 'Unknown';
 
-// 3. รับค่า item_id
+// 3. ตรวจสอบว่ามี ID สินค้าส่งมาไหม
 $item_id = $_GET['item_id'] ?? '';
 if (empty($item_id)) {
     die("ไม่พบรหัสสินค้า (Item ID not provided)");
 }
 
-// 4. ดึงข้อมูลสินค้าเดิม
+// 4. ดึงข้อมูลสินค้าเดิมออกมาเตรียมไว้
 $stmt = $conn->prepare("SELECT * FROM items WHERE item_id = ?");
 $stmt->bind_param("i", $item_id);
 $stmt->execute();
@@ -38,11 +38,11 @@ if ($result->num_rows == 1) {
 
 $error = "";
 
-// 5. บันทึกข้อมูลเมื่อกดปุ่ม (POST)
+// 5. ส่วนประมวลผลเมื่อกดปุ่ม "บันทึก" (Logic ต้องอยู่ตรงนี้ ก่อน HTML)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $item_name = trim($_POST['item_name']);
     $item_price = floatval($_POST['item_price']);
-    $item_image = $item['item_image']; // ใช้รูปเดิมเป็นค่าเริ่มต้น
+    $item_image = $item['item_image']; // ค่าเริ่มต้นใช้รูปเดิม
 
     // จัดการอัปโหลดรูปภาพใหม่ (ถ้ามี)
     if (!empty($_FILES['image']['name'])) {
@@ -57,7 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $target_file = $target_dir . $new_image_name;
 
             if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                $item_image = $new_image_name; // อัปเดตชื่อไฟล์รูป
+                // ลบรูปเก่าทิ้งเพื่อประหยัดพื้นที่ (Option)
+                if (!empty($item['item_image']) && file_exists($target_dir . $item['item_image'])) {
+                    @unlink($target_dir . $item['item_image']);
+                }
+                $item_image = $new_image_name;
             } else {
                 $error = "เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ";
             }
@@ -66,28 +70,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
+    // ถ้าไม่มี Error ให้บันทึกลงฐานข้อมูล
     if (empty($error)) {
-        // อัปเดตข้อมูลลงฐานข้อมูล
         $update_sql = "UPDATE items SET item_name = ?, item_price = ?, item_image = ? WHERE item_id = ?";
         $stmt = $conn->prepare($update_sql);
         $stmt->bind_param("sdsi", $item_name, $item_price, $item_image, $item_id);
         
         if ($stmt->execute()) {
-            // บันทึก Log (ใช้ฟังก์ชันกลางจาก db.php และเปลี่ยนเป็นภาษาไทย)
+            // บันทึก Log (ถ้ามีฟังก์ชันนี้)
             if (function_exists('logAction')) {
-                logAction($conn, "แก้ไขวัสดุ", "แก้ไขข้อมูล '$item_name' (ราคา: $item_price)");
+                logAction($conn, $user_id, $user_name, "แก้ไขวัสดุ", "แก้ไขข้อมูล '$item_name' (ราคา: $item_price)");
             }
 
-            // Redirect กลับไปหน้ารายการสินค้า
+            // *** Redirect ตรงนี้จะทำงานได้สมบูรณ์ เพราะยังไม่มี HTML Output ***
             header("Location: allitem.php");
             exit();
         } else {
-            $error = "Error updating item: " . $stmt->error;
+            $error = "เกิดข้อผิดพลาดฐานข้อมูล: " . $stmt->error;
         }
     }
 }
 
-// --- ส่วนแสดงผล HTML (ใช้ header.php เพื่อความสวยงาม) ---
+// 6. เริ่มแสดงผล HTML (ค่อยเรียก header.php ตรงนี้)
 include 'header.php';
 ?>
 
@@ -124,7 +128,7 @@ include 'header.php';
                                 <small class="d-block text-muted mb-2">รูปภาพปัจจุบัน</small>
                                 <?php 
                                     $img_path = "items/" . $item['item_image'];
-                                    // ตรวจสอบไฟล์จริง
+                                    // ตรวจสอบไฟล์จริงเพื่อป้องกันรูปแตก
                                     if (!file_exists(__DIR__ . "/" . $img_path)) {
                                         $img_path = "https://via.placeholder.com/150?text=No+Image";
                                     }
