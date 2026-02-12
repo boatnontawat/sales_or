@@ -8,14 +8,24 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// ฟังก์ชันสำหรับบันทึก Log
+// -----------------------------------------------------------
+// จุดที่แก้ไข: ปรับปรุงฟังก์ชัน logAction ให้บันทึก user_id ด้วย
+// -----------------------------------------------------------
 function logAction($action, $details, $conn) {
+    // ดึง user_id จาก Session (ถ้าไม่มีให้เป็น 0)
+    $user_id = $_SESSION['user_id'] ?? 0;
     $created_by = $_SESSION['user_name'] ?? 'Guest';
-    $stmt = $conn->prepare("INSERT INTO logs (action, details, created_by) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $action, $details, $created_by);
+
+    // เพิ่ม user_id เข้าไปในคำสั่ง SQL
+    $stmt = $conn->prepare("INSERT INTO logs (user_id, action, details, created_by) VALUES (?, ?, ?, ?)");
+    
+    // bind_param: i = integer (user_id), s = string (action, details, created_by)
+    $stmt->bind_param("isss", $user_id, $action, $details, $created_by);
+    
     $stmt->execute();
     $stmt->close();
 }
+// -----------------------------------------------------------
 
 // Initialize variables
 $set_name = $set_price = $sale_price = $set_image = "";
@@ -48,15 +58,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $discount = trim($_POST['discount']);
     }
 
-    // 2. จัดการการอัปโหลดรูปภาพ (Image Upload) - แก้ไขใหม่สำหรับ Render/Linux
+    // 2. จัดการการอัปโหลดรูปภาพ (Image Upload) - สำหรับ Render/Linux
     if (isset($_FILES['set_image']) && $_FILES['set_image']['error'] == 0) {
         $image_tmp = $_FILES['set_image']['tmp_name'];
         $image_name = basename($_FILES['set_image']['name']);
         
-        // --- จุดที่แก้ไข: ใช้ __DIR__ เพื่อหา Path ปัจจุบันของไฟล์นี้บน Server ---
+        // ใช้ __DIR__ เพื่อหา Path ปัจจุบันของไฟล์นี้บน Server
         $target_dir = __DIR__ . "/sets/"; 
         
-        // ตรวจสอบว่ามีโฟลเดอร์ sets หรือไม่ ถ้าไม่มีให้สร้าง (Render ต้องใช้คำสั่งนี้)
+        // ตรวจสอบว่ามีโฟลเดอร์ sets หรือไม่ ถ้าไม่มีให้สร้าง
         if (!is_dir($target_dir)) {
             mkdir($target_dir, 0777, true);
         }
@@ -90,7 +100,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->bind_param("ssddss", $set_name, $set_price, $sale_price, $discount, $set_image, $created_by);
 
             if ($stmt->execute()) {
-                // บันทึก Log
+                // บันทึก Log (ตอนนี้ฟังก์ชันนี้รองรับ user_id แล้ว จะไม่ error)
                 logAction('AddSet', "Added set: $set_name with discount $discount%", $conn);
 
                 // ดึง ID ล่าสุดที่เพิ่งเพิ่ม
